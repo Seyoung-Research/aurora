@@ -1,0 +1,614 @@
+{
+  "name": "Demo project",
+  "tables": [
+    {
+      "Xy": {
+        "name": "Dose-response",
+        "data": [
+          [
+            0.01,
+            [
+              13.404290383527332,
+              14.095233186801938,
+              13.818856065492096
+            ]
+          ],
+          [
+            0.03,
+            [
+              14.620079139716555,
+              14.194251591957821,
+              14.194251591957821
+            ]
+          ],
+          [
+            0.1,
+            [
+              15.466273147631899,
+              15.310048166342687,
+              15.62249812892111
+            ]
+          ],
+          [
+            0.3,
+            [
+              21.21810673612485,
+              20.17800346474618,
+              20.802065427573382
+            ]
+          ],
+          [
+            1.0,
+            [
+              52.5,
+              54.075,
+              52.5
+            ]
+          ],
+          [
+            3.0,
+            [
+              97.07821782178218,
+              98.06881188118813,
+              99.05940594059406
+            ]
+          ],
+          [
+            10.0,
+            [
+              96.99999990785,
+              101.9999999031,
+              99.999999905
+            ]
+          ],
+          [
+            30.0,
+            [
+              103.0,
+              100.0,
+              100.0
+            ]
+          ],
+          [
+            100.0,
+            [
+              99.0,
+              98.0,
+              100.0
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "Column": {
+        "name": "Treatment groups",
+        "columns": [
+          [
+            1.2,
+            1.4,
+            1.1,
+            1.3,
+            1.25,
+            1.35
+          ],
+          [
+            2.1,
+            2.4,
+            2.0,
+            2.2,
+            2.3,
+            2.15
+          ],
+          [
+            4.2,
+            4.6,
+            4.0,
+            4.4,
+            4.3,
+            4.5
+          ]
+        ],
+        "group_names": [
+          "Control",
+          "Low dose",
+          "High dose"
+        ]
+      }
+    },
+    {
+      "Grouped": {
+        "name": "Time course",
+        "row_labels": [
+          "Day 1",
+          "Day 2",
+          "Day 3"
+        ],
+        "data": [
+          [
+            [
+              1.0,
+              1.2,
+              0.9,
+              1.1
+            ],
+            [
+              1.6,
+              1.8,
+              1.5,
+              1.7
+            ],
+            [
+              1.1,
+              1.3,
+              1.0,
+              1.2
+            ]
+          ],
+          [
+            [
+              2.1,
+              2.3,
+              2.0,
+              2.2
+            ],
+            [
+              3.9,
+              4.2,
+              3.7,
+              4.0
+            ],
+            [
+              2.4,
+              2.6,
+              2.2,
+              2.5
+            ]
+          ],
+          [
+            [
+              3.4,
+              3.6,
+              3.2,
+              3.5
+            ],
+            [
+              6.1,
+              6.4,
+              5.9,
+              6.2
+            ],
+            [
+              3.8,
+              4.1,
+              3.6,
+              3.9
+            ]
+          ]
+        ],
+        "group_names": [
+          "Vehicle",
+          "Drug A",
+          "Drug B"
+        ]
+      }
+    },
+    {
+      "Contingency": {
+        "name": "Outcomes",
+        "row_labels": [
+          "Treated",
+          "Control"
+        ],
+        "col_labels": [
+          "Responded",
+          "Did not respond"
+        ],
+        "data": [
+          [
+            72,
+            28
+          ],
+          [
+            41,
+            59
+          ]
+        ]
+      }
+    }
+  ],
+  "analyses": [
+    {
+      "spec": {
+        "CurveFit": {
+          "model": "Sigmoidal dose-response (4PL)"
+        }
+      },
+      "table": 0,
+      "result": {
+        "Curve": {
+          "model": "Sigmoidal dose-response (4PL)",
+          "param_names": [
+            "Bottom",
+            "Top",
+            "logEC50",
+            "HillSlope"
+          ],
+          "params": [
+            3.8486600735962657,
+            99.70118128972565,
+            0.979204998285191,
+            0.9720926692306513
+          ],
+          "param_std_errors": [
+            3.0991111236779334,
+            0.39161269076218447,
+            0.03177550354544361,
+            0.09866912437833388
+          ],
+          "r_squared": 0.9998026044496828,
+          "rmse": 0.5531705289843563,
+          "iterations": 34,
+          "converged": true
+        }
+      },
+      "error": null
+    },
+    {
+      "spec": "Descriptive",
+      "table": 1,
+      "result": {
+        "Descriptive": [
+          {
+            "name": "Control",
+            "stats": {
+              "n": 6,
+              "sum": 7.6,
+              "mean": 1.2666666666666666,
+              "std_dev": 0.1080123449734643,
+              "variance": 0.01166666666666666,
+              "std_error": 0.04409585518440983,
+              "median": 1.275,
+              "mode": null,
+              "min": 1.1,
+              "max": 1.4,
+              "range": 0.2999999999999998,
+              "q1": 1.2125,
+              "q3": 1.3375000000000001,
+              "iqr": 0.12500000000000022,
+              "geometric_mean": 1.262742652343333,
+              "cv_percent": 8.52729039264192,
+              "ci95_lower": 1.1533146623027735,
+              "ci95_upper": 1.3800186710305598
+            }
+          },
+          {
+            "name": "Low dose",
+            "stats": {
+              "n": 6,
+              "sum": 13.15,
+              "mean": 2.191666666666667,
+              "std_dev": 0.142886901662352,
+              "variance": 0.02041666666666665,
+              "std_error": 0.05833333333333331,
+              "median": 2.175,
+              "mode": null,
+              "min": 2.0,
+              "max": 2.4,
+              "range": 0.3999999999999999,
+              "q1": 2.1125000000000003,
+              "q3": 2.275,
+              "iqr": 0.16249999999999964,
+              "geometric_mean": 2.187803191222521,
+              "cv_percent": 6.519554448472334,
+              "ci95_lower": 2.041716059587882,
+              "ci95_upper": 2.341617273745452
+            }
+          },
+          {
+            "name": "High dose",
+            "stats": {
+              "n": 6,
+              "sum": 26.000000000000004,
+              "mean": 4.333333333333334,
+              "std_dev": 0.2160246899469286,
+              "variance": 0.046666666666666634,
+              "std_error": 0.08819171036881966,
+              "median": 4.35,
+              "mode": null,
+              "min": 4.0,
+              "max": 4.6,
+              "range": 0.5999999999999996,
+              "q1": 4.2250000000000005,
+              "q3": 4.475,
+              "iqr": 0.2499999999999991,
+              "geometric_mean": 4.328792746543218,
+              "cv_percent": 4.985185152621429,
+              "ci95_lower": 4.106629324605548,
+              "ci95_upper": 4.56003734206112
+            }
+          }
+        ]
+      },
+      "error": null
+    },
+    {
+      "spec": "OneWayAnova",
+      "table": 1,
+      "result": {
+        "Anova": {
+          "ss_between": 29.693611111111125,
+          "ss_within": 0.3937499999999997,
+          "ss_total": 30.087361111111125,
+          "df_between": 2.0,
+          "df_within": 15.0,
+          "ms_between": 14.846805555555562,
+          "ms_within": 0.02624999999999998,
+          "f": 565.5925925925933,
+          "p_value": 7.549516567451064e-15,
+          "eta_squared": 0.986913109509807,
+          "group_means": [
+            1.2666666666666666,
+            2.191666666666667,
+            4.333333333333334
+          ],
+          "group_ns": [
+            6,
+            6,
+            6
+          ],
+          "pairwise": [
+            {
+              "group_a": 0,
+              "group_b": 1,
+              "mean_diff": -0.9250000000000003,
+              "p_adjusted": 1.071105347250888e-6
+            },
+            {
+              "group_a": 0,
+              "group_b": 2,
+              "mean_diff": -3.0666666666666673,
+              "p_adjusted": 1.3473409418193087e-8
+            },
+            {
+              "group_a": 1,
+              "group_b": 2,
+              "mean_diff": -2.141666666666667,
+              "p_adjusted": 3.9742905688532794e-8
+            }
+          ]
+        }
+      },
+      "error": null
+    },
+    {
+      "spec": {
+        "TTest": {
+          "kind": "Unpaired",
+          "group_a": 0,
+          "group_b": 2
+        }
+      },
+      "table": 1,
+      "result": {
+        "TTest": {
+          "kind": "Unpaired",
+          "t": -31.101676574009428,
+          "df": 10.0,
+          "p_value": 2.7719742786843326e-11,
+          "mean_a": 1.2666666666666666,
+          "mean_b": 4.333333333333334,
+          "mean_diff": -3.0666666666666673,
+          "ci95_diff": [
+            -3.2863641202695804,
+            -2.8469692130637543
+          ],
+          "effect_size": -17.95656134225302,
+          "n_a": 6,
+          "n_b": 6
+        }
+      },
+      "error": null
+    },
+    {
+      "spec": "KruskalWallis",
+      "table": 1,
+      "result": {
+        "KruskalWallis": {
+          "h": 15.157894736842096,
+          "df": 2.0,
+          "p_value": 0.0005110989388393827
+        }
+      },
+      "error": null
+    },
+    {
+      "spec": "TwoWayAnova",
+      "table": 2,
+      "result": {
+        "TwoWay": {
+          "ss_factor_a": 61.131666666666646,
+          "ss_factor_b": 20.27166666666666,
+          "ss_interaction": 5.271666666666675,
+          "ss_error": 0.7649999999999996,
+          "ss_total": 87.43999999999998,
+          "df_a": 2.0,
+          "df_b": 2.0,
+          "df_interaction": 4.0,
+          "df_error": 27.0,
+          "ms_a": 30.565833333333323,
+          "ms_b": 10.13583333333333,
+          "ms_interaction": 1.3179166666666688,
+          "ms_error": 0.028333333333333318,
+          "f_a": 1078.794117647059,
+          "f_b": 357.73529411764713,
+          "f_interaction": 46.51470588235304,
+          "p_a": 0.0,
+          "p_b": 0.0,
+          "p_interaction": 9.89719417532342e-12
+        }
+      },
+      "error": null
+    },
+    {
+      "spec": "ChiSquare",
+      "table": 3,
+      "result": {
+        "ChiSquare": {
+          "chi_square": 19.550401790255314,
+          "df": 1.0,
+          "p_value": 9.798012749584473e-6,
+          "expected": [
+            [
+              56.5,
+              43.5
+            ],
+            [
+              56.5,
+              43.5
+            ]
+          ],
+          "cramers_v": 0.31265317678104054
+        }
+      },
+      "error": null
+    },
+    {
+      "spec": "AreaUnderCurve",
+      "table": 0,
+      "result": {
+        "Summary": [
+          [
+            "AUC (trapezoid)",
+            9880.593932073292
+          ],
+          [
+            "AUC above minimum",
+            8503.452338811367
+          ],
+          [
+            "Baseline (min Y)",
+            13.772793211940455
+          ]
+        ]
+      },
+      "error": null
+    }
+  ],
+  "graphs": [
+    {
+      "name": "Dose-response",
+      "table": 0,
+      "analysis": 0,
+      "plot_kind": "Xy",
+      "style": "LinesAndPoints",
+      "error": "Sem",
+      "x_log": true,
+      "y_log": false,
+      "title": "Dose-response curve",
+      "x_label": "Concentration (nM)",
+      "y_label": "Response (AU)",
+      "show_fit": true,
+      "legend": true,
+      "by_replicate": false,
+      "jitter": 0.25,
+      "width": 1000,
+      "height": 700
+    },
+    {
+      "name": "Bars with SEM",
+      "table": 1,
+      "analysis": 2,
+      "plot_kind": "Bar",
+      "style": "Bars",
+      "error": "Sem",
+      "x_log": false,
+      "y_log": false,
+      "title": "Treatment effect (one-way ANOVA)",
+      "x_label": "Group",
+      "y_label": "Response (AU)",
+      "show_fit": true,
+      "legend": true,
+      "by_replicate": false,
+      "jitter": 0.25,
+      "width": 1000,
+      "height": 700
+    },
+    {
+      "name": "Column scatter",
+      "table": 1,
+      "analysis": null,
+      "plot_kind": "Column",
+      "style": "Columns",
+      "error": "Sem",
+      "x_log": false,
+      "y_log": false,
+      "title": "Individual values",
+      "x_label": "Group",
+      "y_label": "Response (AU)",
+      "show_fit": true,
+      "legend": true,
+      "by_replicate": false,
+      "jitter": 0.25,
+      "width": 1000,
+      "height": 700
+    },
+    {
+      "name": "Box plot",
+      "table": 1,
+      "analysis": null,
+      "plot_kind": "BoxAndWhisker",
+      "style": "Boxes",
+      "error": "None",
+      "x_log": false,
+      "y_log": false,
+      "title": "Distribution of each group",
+      "x_label": "Group",
+      "y_label": "Response (AU)",
+      "show_fit": true,
+      "legend": true,
+      "by_replicate": false,
+      "jitter": 0.25,
+      "width": 1000,
+      "height": 700
+    },
+    {
+      "name": "Two-way grouped bars",
+      "table": 2,
+      "analysis": 5,
+      "plot_kind": "GroupedBar",
+      "style": "Bars",
+      "error": "Sem",
+      "x_log": false,
+      "y_log": false,
+      "title": "Time course by treatment",
+      "x_label": "Day",
+      "y_label": "Concentration (uM)",
+      "show_fit": true,
+      "legend": true,
+      "by_replicate": false,
+      "jitter": 0.25,
+      "width": 1000,
+      "height": 700
+    },
+    {
+      "name": "Contingency counts",
+      "table": 3,
+      "analysis": 6,
+      "plot_kind": "GroupedBar",
+      "style": "Bars",
+      "error": "None",
+      "x_log": false,
+      "y_log": false,
+      "title": "Outcomes by group",
+      "x_label": "Group",
+      "y_label": "Count",
+      "show_fit": true,
+      "legend": true,
+      "by_replicate": false,
+      "jitter": 0.25,
+      "width": 1000,
+      "height": 700
+    }
+  ]
+}
