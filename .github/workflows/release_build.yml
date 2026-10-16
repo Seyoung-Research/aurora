@@ -2,7 +2,7 @@ name: Release Build
 
 on:
   push:
-    tags: ['v*'] # This triggers the build when you push a tag like v1.0.0
+    tags: ['v*']
 
 jobs:
   build:
@@ -22,6 +22,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # --- NEW STEP FOR LINUX DEPENDENCIES ---
+      - name: Install Linux dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfontconfig1-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev libxinerama-dev pkg-config
+      # ---------------------------------------
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
@@ -32,7 +40,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
-          # This logic handles the .exe extension for Windows vs no extension for others
           path: ${{ matrix.os == 'windows-latest' && 'target/release/aurora.exe' || 'target/release/aurora' }}
 
   publish:
