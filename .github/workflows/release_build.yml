@@ -1,0 +1,52 @@
+name: Release Build
+
+on:
+  push:
+    tags: ['v*'] # This triggers the build when you push a tag like v1.0.0
+
+jobs:
+  build:
+    name: Build for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset_name: aurora-linux
+          - os: windows-latest
+            asset_name: aurora-windows.exe
+          - os: macos-latest
+            asset_name: aurora-macos
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build release
+        run: cargo build --release
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          # This logic handles the .exe extension for Windows vs no extension for others
+          path: ${{ matrix.os == 'windows-latest' && 'target/release/aurora.exe' || 'target/release/aurora' }}
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        uses: softprop/action-gh-release@v1
+        with:
+          files: artifacts/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
