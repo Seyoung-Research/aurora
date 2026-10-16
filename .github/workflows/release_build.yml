@@ -48,7 +48,7 @@ jobs:
           path: artifacts
 
       - name: Create GitHub Release
-        uses: softprop/action-gh-release@v1
+        uses: softprops/action-gh-release@v1
         with:
           files: artifacts/**/*
         env:
