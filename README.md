@@ -6,6 +6,8 @@ publication-style graph renderer with PNG export; all in a native egui desktop
 app.
 
 ```
+git clone https://github.com/Seyoung-Research/aurora.git
+cd aurora
 cargo run                 # start the desktop app
 cargo run --release       # same, but faster graph rendering
 cargo test                # 99 unit + headless-UI tests
