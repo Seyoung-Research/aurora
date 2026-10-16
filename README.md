@@ -1,9 +1,8 @@
 # Aurora
 
-A scientific statistics and graphing desktop app written in Rust, in the spirit
-of GraphPad Prism. It has four table types, a statistics engine (t tests, ANOVA,
+A scientific statistics and graphing desktop app written in Rust. It has four table types, a statistics engine (t tests, ANOVA,
 non-parametric tests, contingency tests, curve fitting, regression), and a
-publication-style graph renderer with PNG export — all in a native egui desktop
+publication-style graph renderer with PNG export; all in a native egui desktop
 app.
 
 ```
