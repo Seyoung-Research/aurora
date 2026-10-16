@@ -21,21 +21,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-<<<<<<< HEAD
-
-      # --- NEW STEP FOR LINUX DEPENDENCIES ---
-=======
->>>>>>> 9376c572e3bba3a0ad51466e23abea6528f837bc
       - name: Install Linux dependencies
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y libfontconfig1-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev libxinerama-dev pkg-config
-<<<<<<< HEAD
-      # ---------------------------------------
 
-=======
->>>>>>> 9376c572e3bba3a0ad51466e23abea6528f837bc
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
