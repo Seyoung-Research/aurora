@@ -23,7 +23,7 @@ Objective-C return-type check while winit enumerates screens, which prevented
 the window from opening in debug builds. Nothing else is affected — tests still
 run with debug assertions enabled.
 
-## Quickstart:
+## Quickstart
 
 Download the pre-compiled binaries in the releases tab.
 
