@@ -5,6 +5,8 @@ non-parametric tests, contingency tests, curve fitting, regression), and a
 publication-style graph renderer with PNG export all in a native egui desktop
 app.
 
+## Build from Source
+
 ```
 git clone https://github.com/Seyoung-Research/aurora.git
 cd aurora
@@ -20,6 +22,10 @@ That crate (pulled in by winit through eframe) otherwise aborts on a benign
 Objective-C return-type check while winit enumerates screens, which prevented
 the window from opening in debug builds. Nothing else is affected — tests still
 run with debug assertions enabled.
+
+## Quickstart:
+
+Download the pre-compiled binaries in the releases tab.
 
 ## First steps in the app
 
