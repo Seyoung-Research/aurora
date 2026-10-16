@@ -7,6 +7,8 @@ app.
 
 ## Build from Source
 
+*Requires Cargo and Rust to be installed*
+
 ```
 git clone https://github.com/Seyoung-Research/aurora.git
 cd aurora
