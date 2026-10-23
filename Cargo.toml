@@ -2,7 +2,7 @@
 name = "aurora"
 version = "0.1.0"
 edition = "2024"
-description = "Desktop statistics, curve fitting and graphing in the spirit of GraphPad Prism"
+description = "Data visualization and statistical analysis program written entirely in Rust"
 
 [dependencies]
 ndarray = "0.15"

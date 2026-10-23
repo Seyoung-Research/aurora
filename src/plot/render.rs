@@ -362,11 +362,13 @@ fn layout(chart: &Chart, width: u32, height: u32) -> Layout {
 // Drawing helpers (all best-effort: a font failure never aborts a render)
 // ---------------------------------------------------------------------------
 
+/// Draw a line between two pixels.
 fn line(da: &Area, a: (i32, i32), b: (i32, i32), c: RGBColor, w: u32) -> Result<()> {
     da.draw(&PathElement::new(vec![a, b], c.stroke_width(w.max(1))))?;
     Ok(())
 }
 
+/// Draw a closed polygon (the outline of a shape that is not filled).
 fn poly(da: &Area, pts: &[(i32, i32)], c: RGBColor, w: u32) -> Result<()> {
     if pts.len() < 2 {
         return Ok(());
@@ -378,6 +380,7 @@ fn poly(da: &Area, pts: &[(i32, i32)], c: RGBColor, w: u32) -> Result<()> {
     Ok(())
 }
 
+/// Draw a rectangle, optionally filled and/or outlined.
 fn rect(
     da: &Area,
     a: (i32, i32),
@@ -400,6 +403,8 @@ fn rect(
     Ok(())
 }
 
+/// Draw a marker shape (circle, box, triangle, ... or a line-based shape) at a
+/// pixel position.
 fn marker(da: &Area, at: (i32, i32), m: Marker, size: i32, c: RGBColor) -> Result<()> {
     let s = size.max(2);
     match m {

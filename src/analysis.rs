@@ -31,39 +31,77 @@ use crate::stats::regression::{
 // ---------------------------------------------------------------------------
 
 /// What an analysis computes.
+///
+/// An analysis is a saved specification of a statistical test or summary; it is
+/// paired with an [`AnalysisResult`] when run. Which specifications are offered
+/// for a given table flavour is decided by [`AnalysisSpec::menu_for`], and which
+/// ones are legal are decided by [`AnalysisSpec::applicable_to`].
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum AnalysisSpec {
     /// Descriptive statistics for every column / row of groups.
     Descriptive,
+    /// Two-sample t-test comparing two groups of a column table.
+    ///
+    /// The kind of test (unpaired / Welch / paired / one-sample) and the two
+    /// groups to compare are part of the specification.
     TTest {
+        /// Which t-test variant to run.
         kind: TTestKind,
+        /// Index of the first group (column) to compare.
         group_a: usize,
+        /// Index of the second group (column) to compare.
         group_b: usize,
     },
+    /// One-way analysis of variance across groups.
     OneWayAnova,
+    /// Two-way analysis of variance with replication, across two factors.
     TwoWayAnova,
+    /// Mann-Whitney U rank test comparing two groups.
+    ///
+    /// The two groups are part of the specification.
     MannWhitney {
+        /// Index of the first group (column) to compare.
         group_a: usize,
+        /// Index of the second group (column) to compare.
         group_b: usize,
     },
+    /// Wilcoxon signed-rank test for paired data.
+    ///
+    /// The two groups are part of the specification.
     Wilcoxon {
+        /// Index of the first group (column) to compare.
         group_a: usize,
+        /// Index of the second group (column) to compare.
         group_b: usize,
     },
+    /// Kruskal-Wallis rank-based one-way analysis of variance.
     KruskalWallis,
+    /// Friedman test for repeated-measures (paired) data.
     Friedman,
+    /// Chi-square test of independence for a contingency table.
     ChiSquare,
+    /// Simple linear regression on an XY table.
     LinearRegression,
+    /// Deming regression (errors-in-variables) with the given lambda.
     Deming {
+        /// Ratio of variances of the errors in x and y (`1.0` for equal errors).
         lambda: f64,
     },
+    /// Fit a named non-linear model to an XY table.
     CurveFit {
+        /// Name of the model from the regression model library.
         model: String,
     },
+    /// Area under the curve of an XY table (trapezoidal rule).
     AreaUnderCurve,
+    /// LOWESS smoothing of an XY table.
+    ///
+    /// The smoothing fraction is part of the specification.
     Lowess {
+        /// Smoothing fraction (clamped to [0.05, 1.0]).
         frac: f64,
     },
+    /// Cubic spline interpolation of an XY table.
     CubicSpline,
 }
 
@@ -201,29 +239,51 @@ impl AnalysisSpec {
 // Results
 // ---------------------------------------------------------------------------
 
+/// A named summary statistic: which table column / X value it belongs to, plus
+/// the statistics computed for it.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct NamedStats {
+    /// Name of the group or of the X value the statistics belong to.
     pub name: String,
+    /// The statistics themselves.
     pub stats: DescriptiveStats,
 }
 
+/// The outcome of running an [`AnalysisSpec`] on a table.
+///
+/// The variant encodes which kind of result is present; accessors such as
+/// [`AnalysisResult::summary_rows`] and [`AnalysisResult::headline`] turn a
+/// result into display-ready text.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum AnalysisResult {
+    /// Descriptive statistics for every group / X value.
     Descriptive(Vec<NamedStats>),
+    /// Outcome of a t-test.
     TTest(TTestResult),
+    /// Outcome of a one-way ANOVA (with pairwise comparisons).
     Anova(AnovaResult),
+    /// Outcome of a two-way ANOVA with replication.
     TwoWay(TwoWayAnovaResult),
+    /// Outcome of a Mann-Whitney U test.
     MannWhitney(MannWhitneyResult),
+    /// Outcome of a Wilcoxon signed-rank test.
     Wilcoxon(WilcoxonResult),
+    /// Outcome of a Kruskal-Wallis test.
     KruskalWallis(KruskalWallisResult),
+    /// Outcome of a Friedman test.
     Friedman(FriedmanResult),
+    /// Outcome of a chi-square test of independence.
     ChiSquare(ChiSquareResult),
+    /// Outcome of a linear regression.
     LinearRegression(LinearRegressionResult),
+    /// Outcome of a non-linear curve fit.
     Curve(CurveFitResult),
     /// Named scalars (e.g. AUC) or any small numeric summary.
     Summary(Vec<(String, f64)>),
 }
 
+/// Format a float for display: scientific notation for extreme magnitudes and
+/// `n/a` for non-finite values.
 fn f(v: f64) -> String {
     if !v.is_finite() {
         return "n/a".to_string();
@@ -236,6 +296,7 @@ fn f(v: f64) -> String {
     }
 }
 
+/// Format a p-value for display, marking values below 0.0001 as `< 0.0001 (x)`.
 fn p_string(p: f64) -> String {
     if !p.is_finite() {
         return "n/a".to_string();
@@ -431,17 +492,22 @@ impl AnalysisResult {
 // Analysis + graph model
 // ---------------------------------------------------------------------------
 
+/// A single analysis of a project: which test to run on which table, and the
+/// outcome of the last run (if any).
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Analysis {
+    /// The statistical test / summary that is (or will be) run.
     pub spec: AnalysisSpec,
-    /// Index into `Project::tables`.
+    /// Index into `Project::tables` the analysis was set up for.
     pub table: usize,
+    /// Result of the last run, if it succeeded.
     pub result: Option<AnalysisResult>,
-    /// Set when the last run failed.
+    /// Set when the last run failed; holds the error message.
     pub error: Option<String>,
 }
 
 impl Analysis {
+    /// Create a new, not-yet-run analysis of the given spec on the given table.
     pub fn new(spec: AnalysisSpec, table: usize) -> Self {
         Self {
             spec,
@@ -451,10 +517,15 @@ impl Analysis {
         }
     }
 
+    /// Short human-readable name of this analysis (its spec's label).
     pub fn name(&self) -> String {
         self.spec.label()
     }
 
+    /// Run the analysis against the given table and store the result or error.
+    ///
+    /// On success the previous result (and error) is replaced; on failure both
+    /// are cleared and the error is kept for display.
     pub fn run(&mut self, table: &TableInstance) {
         match run(&self.spec, table) {
             Ok(r) => {
@@ -470,20 +541,34 @@ impl Analysis {
 }
 
 /// How to draw a graph.
+///
+/// A graph binds a table (or an analysis) and describes how the chart should
+/// look: which plot kind, series style, error bars, scales and whether a fitted
+/// curve should be overlaid.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Graph {
+    /// Display name of the graph.
     pub name: String,
     /// Index into `Project::tables` (`None` uses the analysis's table).
     pub table: Option<usize>,
-    /// Index into `Project::analyses`.
+    /// Index into `Project::analyses`; when set, the fitted curve is drawn if
+    /// `show_fit` is enabled.
     pub analysis: Option<usize>,
+    /// Plot kind driving the layout of the x axis.
     pub plot_kind: PlotKind,
+    /// How series are drawn (lines, markers, bars, boxes, ...).
     pub style: SeriesStyle,
+    /// Error bar to derive from replicates, if any.
     pub error: ErrorKind,
+    /// Whether the x axis uses a base-10 logarithm.
     pub x_log: bool,
+    /// Whether the y axis uses a base-10 logarithm.
     pub y_log: bool,
+    /// Title of the chart; falls back to the graph's name.
     pub title: String,
+    /// Label of the x axis; falls back to the table's name.
     pub x_label: String,
+    /// Label of the y axis; falls back to the table's name.
     pub y_label: String,
     /// Draw the fitted curve from the referenced analysis.
     pub show_fit: bool,
@@ -503,18 +588,22 @@ pub struct Graph {
     pub height: u32,
 }
 
+/// Serde default for [`Graph::legend`]: legends are on by default.
 fn graph_default_true() -> bool {
     true
 }
 
+/// Serde default for [`Graph::jitter`]: horizontal scatter jitter of 0.25.
 fn graph_default_jitter() -> f64 {
     0.25
 }
 
+/// Serde default for [`Graph::width`]: 1000 px canvas width.
 fn graph_default_width() -> u32 {
     1000
 }
 
+/// Serde default for [`Graph::height`]: 700 px canvas height.
 fn graph_default_height() -> u32 {
     700
 }
@@ -547,6 +636,7 @@ impl Default for Graph {
 // Running analyses
 // ---------------------------------------------------------------------------
 
+/// Return the column table, or an error when the table is not a column table.
 fn require_column(table: &TableInstance) -> Result<&ColumnTable> {
     match table {
         TableInstance::Column(t) => Ok(t),
@@ -554,6 +644,7 @@ fn require_column(table: &TableInstance) -> Result<&ColumnTable> {
     }
 }
 
+/// Return the XY table, or an error when the table is not an XY table.
 fn require_xy(table: &TableInstance) -> Result<&XyTable> {
     match table {
         TableInstance::Xy(t) => Ok(t),
@@ -561,12 +652,14 @@ fn require_xy(table: &TableInstance) -> Result<&XyTable> {
     }
 }
 
+/// Return the i-th column of a column table (index in error messages is 1-based).
 fn column(t: &ColumnTable, i: usize) -> Result<&Vec<f64>> {
     t.columns
         .get(i)
         .ok_or_else(|| anyhow!("Column {} does not exist", i + 1))
 }
 
+/// Group display name for column `i`, falling back to `Group N` when unnamed.
 fn group_name(t: &ColumnTable, i: usize) -> String {
     t.group_names
         .get(i)
@@ -588,6 +681,16 @@ fn xy_pairs(t: &XyTable) -> Vec<(f64, f64, Vec<f64>)> {
 }
 
 /// Run an analysis against a table.
+///
+/// Checks that the spec is applicable to the table's flavor and then executes
+/// the corresponding statistical routine. The result of the run is expected to
+/// be turned into a displayable [`AnalysisResult`] by the caller.
+///
+/// # Errors
+///
+/// Returns an error when the spec is not applicable to the table type, or when
+/// the underlying statistic cannot be computed (degenerate data, unknown model,
+/// ...).
 pub fn run(spec: &AnalysisSpec, table: &TableInstance) -> Result<AnalysisResult> {
     if !spec.applicable_to(table.flavor()) {
         bail!("{} cannot be run on a {} table", spec.label(), table.flavor().label());
@@ -961,6 +1064,7 @@ fn chart_wants_legend(chart: &Chart) -> bool {
     !(one_point_per_series && !chart.categories.is_empty())
 }
 
+/// Data-space x extent (min..max) of an XY table, used as the fitting range.
 fn xy_x_extent(t: &XyTable) -> (f64, f64) {
     let mut lo = f64::INFINITY;
     let mut hi = f64::NEG_INFINITY;
@@ -975,6 +1079,8 @@ fn xy_x_extent(t: &XyTable) -> (f64, f64) {
     }
 }
 
+/// Build a fitted-curve series: sample `f` over `extent` and return it as a
+/// line series named `name` (or `None` when there are no finite points).
 fn line_overlay(
     extent: &(f64, f64),
     f: impl Fn(f64) -> f64,

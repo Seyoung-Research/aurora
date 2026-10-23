@@ -1,10 +1,23 @@
 //! The egui desktop application: menus, project tree, editors, results and
 //! graphs.
+//!
+//! The module is split into panels, each owning its part of the UI:
+//!
+//! - [`analysis_panel`] — the analyses list, the add/run loop and results
+//!   rendering.
+//! - [`demo`] — the demo project used by the menu, the self-test and the docs.
+//! - [`graph_panel`] — the graph viewer, live rendering and PNG export.
+//! - [`table_editor`] — editable views for every table type.
+//!
+//! The [`App`] struct ties the panels together. This module is mostly concerned
+//! with egui wiring; the data model, statistics and chart builders live in the
+//! sibling modules (`data`, `stats`, `plot`, `analysis`).
 
 pub mod analysis_panel;
 pub mod demo;
 pub mod graph_panel;
 pub mod table_editor;
+pub mod theme;
 
 use eframe::egui;
 use egui::{Color32, RichText, Ui};
@@ -20,27 +33,39 @@ use graph_panel::{ExportRequest, TexCache};
 /// Which modal dialog is open.
 #[derive(Clone, Debug)]
 enum Dialog {
+    /// No dialog open.
     None,
+    /// Dialog for creating a new table.
     NewTable,
+    /// Dialog for opening a project file.
     Open,
+    /// Dialog for choosing a file name to save to.
     SaveAs,
+    /// Dialog for importing a CSV file.
     Import,
+    /// Dialog for exporting a graph as PNG.
     Export(ExportRequest),
-    /// Export the selected table as CSV.
+    /// Dialog for exporting a table as CSV.
     ExportTable { path: String },
+    /// About dialog.
     About,
+    /// Dialog listing the supported CSV import/export formats.
     Formats,
 }
 
 /// Which tab the central panel shows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Tab {
+    /// Data tables browser / editor.
     Data,
+    /// Analyses and their results.
     Results,
+    /// Graph viewer / editor.
     Graph,
 }
 
 impl Tab {
+    /// Short label of the tab, used for the tab bar buttons.
     fn label(&self) -> &'static str {
         match self {
             Tab::Data => "Data",
@@ -50,31 +75,51 @@ impl Tab {
     }
 }
 
+/// The egui desktop application: owns the project, the current tab, the
+/// selected table/analysis/graph and the state of the modal dialogs.
 pub struct App {
+    /// The project currently being edited (tables, analyses, graphs).
     project: Project,
+    /// Path of the currently open project file, if any.
     path: Option<String>,
+    /// Whether the project has unsaved changes.
     dirty: bool,
+    /// Which tab the central panel shows.
     tab: Tab,
     /// Light/dark UI theme (toggled from the Settings menu).
     dark: bool,
+    /// Index of the selected table in the project.
     selected_table: Option<usize>,
+    /// Index of the selected analysis in the project.
     selected_analysis: Option<usize>,
+    /// Index of the selected graph in the project.
     selected_graph: Option<usize>,
+    /// Which modal dialog, if any, is open.
     dialog: Dialog,
+    /// Name to give a newly created table.
     new_table_name: String,
+    /// Default flavor used when creating a new table via the dialog.
     new_table_flavor: TableFlavor,
+    /// Text field content of the "save as" dialog.
     path_input: String,
+    /// Flavor chosen for a CSV import.
     import_flavor: TableFlavor,
+    /// One-line status message shown in the status bar.
     status: String,
     /// Bumped whenever data/options change so graphs re-render.
     revision: u64,
     cache: TexCache,
+    /// List of files found in the working directory (for the open dialog).
     listing: Vec<String>,
     /// Last window title pushed to the viewport (avoids re-sending it).
     last_title: String,
 }
 
 impl App {
+    /// Create a new app instance and apply the initial theme.
+    ///
+    /// Also honours the command-line flags handled by the binary (e.g.
+    /// `--open <file>` and `--tab <data|results|graph>`).
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         let mut app = Self {
             project: Project::new("Untitled project"),
@@ -119,6 +164,8 @@ impl App {
 
     // -- file handling ----------------------------------------------------- //
 
+    /// Scan the working directory for `.json` / `.csv` files to offer in the
+    /// open dialog.
     fn refresh_listing(&mut self) {
         let mut found = Vec::new();
         if let Ok(rd) = std::fs::read_dir(".") {
@@ -135,6 +182,7 @@ impl App {
         self.listing = found;
     }
 
+    /// Open a project file, replacing the current project.
     fn open_path(&mut self, path: &str) {
         match load_project(path) {
             Ok(p) => {
@@ -157,6 +205,7 @@ impl App {
         }
     }
 
+    /// Save the current project to `path`.
     fn save_to(&mut self, path: &str) {
         match save_project(&self.project, path) {
             Ok(()) => {
@@ -168,6 +217,8 @@ impl App {
         }
     }
 
+    /// Save the current project; if it has no path yet, open the save dialog
+    /// using a default file name.
     fn save_current(&mut self) {
         match self.path.clone() {
             Some(p) => self.save_to(&p),
@@ -182,6 +233,7 @@ impl App {
         }
     }
 
+    /// Load the demo project (used by the File menu and `--selftest`).
     fn load_demo(&mut self) {
         self.project = demo::demo_project();
         self.path = None;
@@ -200,6 +252,7 @@ impl App {
         );
     }
 
+    /// Create a new table of the given flavor and select it.
     fn new_table(&mut self, flavor: TableFlavor) {
         let name = if self.new_table_name.trim().is_empty() {
             format!("{} table {}", flavor.label(), self.project.tables.len() + 1)
@@ -214,6 +267,7 @@ impl App {
         self.status = format!("Added a new {} table", flavor.label());
     }
 
+    /// Import a CSV file of the given flavor and select the new table.
     fn import_csv(&mut self, path: &str, flavor: TableFlavor) {
         match csv_import::import_table(path, flavor) {
             Ok(t) => {
@@ -231,6 +285,7 @@ impl App {
 
     // -- panels ------------------------------------------------------------ //
 
+    /// Draw the egui menu bar (File, Table, Analyses, Graph, Settings, Help).
     fn menu_bar(&mut self, ctx: &egui::Context) {
         egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
@@ -478,6 +533,7 @@ impl App {
         });
     }
 
+    /// Draw the left-hand project tree panel (tables, analyses, graphs).
     fn sidebar(&mut self, ctx: &egui::Context) {
         egui::SidePanel::left("project_tree")
             .default_width(300.0)
@@ -666,6 +722,7 @@ impl App {
             });
     }
 
+    /// Draw the central panel: the selected table editor / analyses / graph.
     fn central(&mut self, ui: &mut Ui) {
         match self.tab {
             Tab::Data => match self.selected_table {
@@ -754,6 +811,7 @@ impl App {
         }
     }
 
+    /// Draw the status bar at the bottom of the window.
     fn status_bar(&mut self, ctx: &egui::Context) {
         egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| {
             ui.horizontal_wrapped(|ui| {
@@ -780,6 +838,8 @@ impl App {
         });
     }
 
+    /// Draw the modal dialogs (new table, open, save as, import, export, about,
+    /// formats) on top of the current UI.
     fn dialogs(&mut self, ctx: &egui::Context) {
         match self.dialog.clone() {
             Dialog::None => {}
@@ -1172,8 +1232,8 @@ impl eframe::App for App {
     }
 }
 
-/// A filename-safe version of a label (`"Dose-response curve"` →
-/// `"dose_response_curve"`).
+/// Convert a display name into a file-name-safe slug
+/// (`"Dose-response curve"` → `"dose_response_curve"`).
 pub fn slug(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for c in s.chars() {
@@ -1191,13 +1251,9 @@ pub fn slug(s: &str) -> String {
     }
 }
 
-/// Apply the app-wide light or dark theme.
+/// Apply the app-wide sleek purple theme (light or dark).
 fn apply_theme(ctx: &egui::Context, dark: bool) {
-    ctx.set_visuals(if dark {
-        egui::Visuals::dark()
-    } else {
-        egui::Visuals::light()
-    });
+    theme::apply_theme(ctx, dark);
 }
 
 /// Error red, adjusted so it stays legible on both themes.
@@ -1219,6 +1275,7 @@ pub(crate) fn success_color(ui: &Ui) -> Color32 {
 }
 
 /// A small starter table so a new table is not empty.
+/// Create a new (empty) table skeleton of the given flavor with the given name.
 fn new_table_skeleton(flavor: TableFlavor, name: String) -> TableInstance {
     match flavor {
         TableFlavor::Xy => TableInstance::Xy(crate::data::tables::XyTable {

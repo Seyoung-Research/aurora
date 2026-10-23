@@ -18,8 +18,11 @@ use crate::stats::distributions::t_ppf;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct LinearRegressionResult {
+    /// Slope of the fitted line.
     pub slope: f64,
+    /// Intercept of the fitted line.
     pub intercept: f64,
+    /// Coefficient of determination (R squared) of the fit.
     pub r_squared: f64,
     /// Standard error of the slope.
     pub slope_se: f64,
@@ -27,12 +30,18 @@ pub struct LinearRegressionResult {
     pub intercept_se: f64,
     /// p-value for the slope being non-zero.
     pub slope_p: f64,
+    /// Number of observations used for the fit.
     pub n: usize,
     /// 95% confidence interval of the slope.
     pub slope_ci95: (f64, f64),
 }
 
 /// Ordinary least squares fit of `y = intercept + slope * x`.
+///
+/// # Errors
+///
+/// Returns an error when the x and y slices differ in length, when fewer than
+/// three points are given, or when all x values are identical (a degenerate fit).
 pub fn simple_linear_regression(x: &[f64], y: &[f64]) -> Result<LinearRegressionResult> {
     if x.len() != y.len() {
         bail!("X and Y must have the same length");
@@ -92,7 +101,13 @@ pub fn simple_linear_regression(x: &[f64], y: &[f64]) -> Result<LinearRegression
 /// Deming regression (total least squares / errors-in-variables).
 ///
 /// `lambda` is the ratio of the variances of the errors in x and y
-/// (`lambda = 1` for equal errors).
+/// (`lambda = 1` for equal errors, `lambda = 2` when the error variance in x is
+/// twice that in y, etc.).
+///
+/// # Errors
+///
+/// Returns an error when the x and y slices differ in length or when fewer than
+/// three points are given.
 pub fn deming_regression(
     x: &[f64],
     y: &[f64],
@@ -159,21 +174,31 @@ pub fn deming_regression(
 // Non-linear curve fitting (Levenberg-Marquardt)
 // ---------------------------------------------------------------------------
 
+/// Result of fitting a non-linear model to `x`/`y` data.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct CurveFitResult {
+    /// Name of the model that was fitted (key into the model library).
     pub model: String,
+    /// Names of the fitted parameters, e.g. `["Vmax", "Km"]`.
     pub param_names: Vec<String>,
+    /// Best-fit parameter values.
     pub params: Vec<f64>,
     /// Approximate standard errors of the parameters (from J^T J).
     pub param_std_errors: Vec<f64>,
+    /// Coefficient of determination (R squared) of the fit.
     pub r_squared: f64,
+    /// Root mean square error of the fit.
     pub rmse: f64,
+    /// Number of Levenberg-Marquardt iterations performed.
     pub iterations: usize,
+    /// Whether the optimizer converged to a solution.
     pub converged: bool,
 }
 
 impl CurveFitResult {
     /// Evaluate the fitted curve at `x`.
+    ///
+    /// Returns `None` when the model name is unknown.
     pub fn eval(&self, x: f64) -> Option<f64> {
         model_by_name(&self.model).map(|_| evaluate(&self.model, x, &self.params))
     }
@@ -183,12 +208,18 @@ impl CurveFitResult {
 /// and the function itself.
 #[derive(Clone, Copy)]
 pub struct ModelDef {
+    /// Human-readable model name (used as the key in the model library).
     pub name: &'static str,
+    /// Ordered parameter names, e.g. `["Bottom", "Top", "logEC50", "HillSlope"]`.
     pub param_names: &'static [&'static str],
+    /// Model function `f(x, params) -> f64`.
     pub func: fn(f64, &[f64]) -> f64,
+    /// Initial-guess function `f(x, y) -> Vec<f64>` producing the starting
+    /// parameters from the data.
     pub init: fn(&[f64], &[f64]) -> Vec<f64>,
 }
 
+/// Evaluate a named model at `x` with the given parameters.
 fn evaluate(model: &str, x: f64, p: &[f64]) -> f64 {
     match model_by_name(model) {
         Some(m) => (m.func)(x, p),
@@ -297,6 +328,16 @@ pub fn model_by_name(name: &str) -> Option<ModelDef> {
 }
 
 /// Fit `x`/`y` to the named model using Levenberg-Marquardt least squares.
+///
+/// The fit starts from the model's initial guess and iteratively solves the
+/// Levenberg-Marquardt normal equations; the result reports the best-fit
+/// parameters, their standard errors (from the Jacobian), R squared, RMSE and
+/// whether the optimizer converged.
+///
+/// # Errors
+///
+/// Returns an error when the x and y slices differ in length, when fewer than
+/// three points are given, or when the model name is unknown.
 pub fn fit_curve(model_name: &str, x: &[f64], y: &[f64]) -> Result<CurveFitResult> {
     if x.len() != y.len() {
         bail!("X and Y must have the same length");
@@ -410,6 +451,7 @@ fn jtr(j: &[Vec<f64>], r: &[f64]) -> Vec<f64> {
     v
 }
 
+/// Sum of squares of the residuals: the objective function of the fit.
 fn sse(r: &[f64]) -> f64 {
     r.iter().map(|v| v * v).sum()
 }
@@ -594,6 +636,14 @@ fn invert(a: &[Vec<f64>]) -> Result<Mat> {
 // ---------------------------------------------------------------------------
 
 /// Area under the curve by the trapezoidal rule.
+///
+/// Uses the trapezoid rule over consecutive `(x, y)` pairs; the curve is not
+/// sampled adaptively, so this is exact for piecewise-linear data.
+///
+/// # Errors
+///
+/// Returns an error when the x and y slices differ in length or when fewer than
+/// two paired points are given.
 pub fn trapezoidal_auc(x: &[f64], y: &[f64]) -> Result<f64> {
     if x.len() != y.len() || x.len() < 2 {
         bail!("Need at least 2 paired points");
@@ -605,7 +655,17 @@ pub fn trapezoidal_auc(x: &[f64], y: &[f64]) -> Result<f64> {
     Ok(auc)
 }
 
-/// LOWESS smoothing. Returns the smoothed y values (same length as input).
+/// LOWESS smoothing (locally weighted scatterplot smoothing).
+///
+/// Returns the smoothed y values (same length as the input). The smoothing
+/// fraction `frac` controls how many neighbours enter the local regression
+/// (clamped to [0.05, 1.0]); `iters` controls the number of robust reweighting
+/// sweeps.
+///
+/// # Errors
+///
+/// Returns an error when the x and y slices differ in length or when fewer than
+/// three paired points are given.
 pub fn lowess(x: &[f64], y: &[f64], frac: f64, iters: usize) -> Result<Vec<f64>> {
     let n = x.len();
     if n != y.len() || n < 3 {
@@ -669,7 +729,13 @@ pub fn lowess(x: &[f64], y: &[f64], frac: f64, iters: usize) -> Result<Vec<f64>>
 
 /// Natural cubic spline through the given points, evaluated on `xq`.
 ///
-/// `x` must be sorted ascending.
+/// Uses the natural (zero second-derivative) boundary conditions; `x` must be
+/// sorted ascending. Returns one interpolated value per entry of `xq`.
+///
+/// # Errors
+///
+/// Returns an error when the x and y slices differ in length or when fewer than
+/// three paired points are given.
 pub fn cubic_spline(x: &[f64], y: &[f64], xq: &[f64]) -> Result<Vec<f64>> {
     let n = x.len();
     if n != y.len() || n < 3 {

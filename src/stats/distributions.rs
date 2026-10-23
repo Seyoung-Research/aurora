@@ -149,7 +149,7 @@ fn incomplete_beta_cf(a: f64, b: f64, x: f64) -> f64 {
     h
 }
 
-/// `ln B(a,b) = ln Γ(a) + ln Γ(b) - ln Γ(a+b)`.
+/// Logarithm of the beta function: `ln B(a, b) = ln Γ(a) + ln Γ(b) - ln Γ(a + b)`.
 fn ln_beta(a: f64, b: f64) -> f64 {
     ln_gamma(a) + ln_gamma(b) - ln_gamma(a + b)
 }
@@ -217,6 +217,8 @@ pub fn ln_gamma(x: f64) -> f64 {
     }
 }
 
+/// Lower regularized incomplete gamma function `γ(a, x) / Γ(a)` via its power
+/// series, used when `x < a + 1`.
 fn gamma_series(a: f64, x: f64) -> f64 {
     const MAX_ITER: u32 = 500;
     const EPS: f64 = 1e-15;
@@ -235,6 +237,8 @@ fn gamma_series(a: f64, x: f64) -> f64 {
     (sum * ln.exp()).clamp(0.0, 1.0)
 }
 
+/// Upper regularized incomplete gamma function via the Lentz continued
+/// fraction, used when `x >= a + 1`.
 fn gamma_cf(a: f64, x: f64) -> f64 {
     const MAX_ITER: u32 = 500;
     const EPS: f64 = 1e-15;

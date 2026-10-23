@@ -15,6 +15,7 @@ fn jitter(i: usize) -> f64 {
     J[i % J.len()]
 }
 
+/// Append an analysis to the project and immediately run it, returning its index.
 fn add_analysis(p: &mut Project, spec: AnalysisSpec, table: usize) -> usize {
     let idx = p.analyses.len();
     p.analyses.push(Analysis::new(spec, table));
@@ -22,6 +23,8 @@ fn add_analysis(p: &mut Project, spec: AnalysisSpec, table: usize) -> usize {
     idx
 }
 
+/// Build a graph for the demo: an XY plot, a column plot, a grouped plot or a
+/// contingency plot, all wired to an analysis where applicable.
 #[allow(clippy::too_many_arguments)]
 fn make_graph(
     name: &str,
@@ -52,7 +55,8 @@ fn make_graph(
     }
 }
 
-/// Build the demo project: four tables, eight analyses and six graphs.
+/// Build the demo project: one table of every flavor, a set of analyses that
+/// exercise each statistic and graphs that visualise the results.
 pub fn demo_project() -> Project {
     let mut p = Project::new("Demo project");
 

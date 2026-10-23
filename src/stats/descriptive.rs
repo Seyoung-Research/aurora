@@ -10,22 +10,32 @@ use crate::stats::distributions::t_ppf;
 /// Complete set of descriptive statistics for one sample.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct DescriptiveStats {
+    /// Number of observations in the sample.
     pub n: usize,
+    /// Sum of all observations.
     pub sum: f64,
+    /// Arithmetic mean (sum / n).
     pub mean: f64,
     /// Sample standard deviation (n - 1 denominator).
     pub std_dev: f64,
     /// Variance (n - 1 denominator).
     pub variance: f64,
-    /// Standard error of the mean.
+    /// Standard error of the mean (std dev / sqrt(n)).
     pub std_error: f64,
+    /// Median (50th percentile of the sorted sample).
     pub median: f64,
     pub mode: Option<f64>,
+    /// Smallest observed value.
     pub min: f64,
+    /// Largest observed value.
     pub max: f64,
+    /// Range (max - min).
     pub range: f64,
+    /// First quartile (25th percentile) via linear interpolation.
     pub q1: f64,
+    /// Third quartile (75th percentile) via linear interpolation.
     pub q3: f64,
+    /// Interquartile range (q3 - q1).
     pub iqr: f64,
     /// Geometric mean (only when all values are > 0).
     pub geometric_mean: Option<f64>,
@@ -44,7 +54,11 @@ impl DescriptiveStats {
     }
 }
 
-/// Number of quantile-interpolation conventions supported.
+/// Linear-interpolation quantile (the "type 7" / Excel `PERCENTILE.INC`
+/// convention) of a sample that must be sorted ascending.
+///
+/// Returns `f64::NAN` for an empty sample and the single value for a
+/// one-element sample.
 fn quantile(sorted: &[f64], p: f64) -> f64 {
     // Linear interpolation between order statistics (type 7 / Excel PERCENTILE).
     let n = sorted.len();
@@ -68,7 +82,9 @@ fn quantile(sorted: &[f64], p: f64) -> f64 {
 
 /// Compute descriptive statistics for a sample.
 ///
-/// Returns `None` for an empty slice.
+/// Returns `None` for an empty slice. A single observation yields degenerate
+/// statistics (zero variance, confidence interval equal to the value); a sample
+/// of two or more uses the Student-t based confidence interval of the mean.
 pub fn calculate_descriptive(data: &[f64]) -> Option<DescriptiveStats> {
     if data.is_empty() {
         return None;
@@ -167,6 +183,9 @@ pub fn calculate_descriptive(data: &[f64]) -> Option<DescriptiveStats> {
 }
 
 /// Descriptive statistics for each column of a table (rows = observations).
+///
+/// The returned vector has one entry per column of `columns`, in the same order;
+/// entries for empty columns are `None`.
 pub fn descriptive_by_columns(columns: &[Vec<f64>]) -> Vec<Option<DescriptiveStats>> {
     columns.iter().map(|c| calculate_descriptive(c)).collect()
 }

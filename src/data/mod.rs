@@ -1,21 +1,44 @@
 //! The project data model: tables, analyses and graphs.
 //!
-//! A [`Project`] is the unit of persistence (see [`persistence`]).
+//! A [`Project`] is the unit of persistence (see [`persistence`]). It bundles
+//! the tables that hold the numbers, the analyses that were run on them and the
+//! graphs that visualise results.
+//!
+//! Tables come in four [`TableFlavor`]s, distinguished by how their numbers are
+//! organised:
+//!
+//! - [`TableFlavor::Xy`] — one `X` value with several `Y` replicates per row.
+//! - [`TableFlavor::Column`] — one column of replicates per group.
+//! - [`TableFlavor::Grouped`] — rows of X categories crossed with groups of
+//!   replicates.
+//! - [`TableFlavor::Contingency`] — counts for two categorical variables.
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
+/// Import and export of CSV files for every table flavor.
 pub mod csv_import;
+/// Persistence: save / load a project as a JSON file.
 pub mod persistence;
+/// Concrete table types behind the [`TableFlavor`].
 pub mod tables;
 
 use crate::analysis::{Analysis, Graph};
 use crate::plot::Chart;
 
 /// Represents a generic data table in the system.
+///
+/// Implemented by the four table types ([`XyTable`](crate::data::tables::XyTable),
+/// [`ColumnTable`](crate::data::tables::ColumnTable),
+/// [`GroupedTable`](crate::data::tables::GroupedTable) and
+/// [`ContingencyTable`](crate::data::tables::ContingencyTable)). The trait
+/// exposes only the display name and the ability to clear the table's data.
 pub trait Table {
+    /// Display name of the table.
     fn name(&self) -> &str;
+    /// Rename the table.
     fn set_name(&mut self, name: String);
+    /// Remove all data, keeping the table itself.
     fn clear(&mut self);
 }
 
@@ -33,6 +56,7 @@ pub enum TableFlavor {
 }
 
 impl TableFlavor {
+    /// Short label used in menus, results and the project tree.
     pub fn label(&self) -> &'static str {
         match self {
             TableFlavor::Xy => "XY",
@@ -42,6 +66,7 @@ impl TableFlavor {
         }
     }
 
+    /// All supported table flavors, in a stable display order.
     pub fn all() -> [TableFlavor; 4] {
         [
             TableFlavor::Xy,
@@ -53,25 +78,43 @@ impl TableFlavor {
 }
 
 /// The master project structure containing all data and results.
+///
+/// A project is what gets saved to and loaded from a JSON file (see
+/// [`persistence`]); it groups tables, the analyses derived from them and the
+/// graphs that visualise results.
 #[derive(Serialize, Deserialize, Default)]
 pub struct Project {
+    /// Display name of the project.
     pub name: String,
+    /// Tables in the project, in creation order.
     pub tables: Vec<TableInstance>,
+    /// Analyses run on (or planned for) the tables, in creation order.
     #[serde(default)]
     pub analyses: Vec<Analysis>,
+    /// Graphs defined over the tables / analyses, in creation order.
     #[serde(default)]
     pub graphs: Vec<Graph>,
 }
 
+/// A table of one of the four [`TableFlavor`]s.
+///
+/// The enum exists so the rest of the engine can be written over a single
+/// interface (name, kind, data access) while still keeping the concrete type for
+/// each flavour.
 #[derive(Serialize, Deserialize)]
 pub enum TableInstance {
+    /// X values with Y replicates.
     Xy(tables::XyTable),
+    /// One column of replicates per group.
     Column(tables::ColumnTable),
+    /// Rows (X categories) x groups x replicates.
     Grouped(tables::GroupedTable),
+    /// Counts of row/column categories.
     Contingency(tables::ContingencyTable),
 }
 
 impl TableInstance {
+    /// Read-only access to the underlying table, whatever its flavour is.
     pub fn as_table(&self) -> &dyn Table {
         match self {
             TableInstance::Xy(t) => t,
@@ -81,6 +124,7 @@ impl TableInstance {
         }
     }
 
+    /// Mutable access to the underlying table, whatever its flavour is.
     pub fn as_table_mut(&mut self) -> &mut dyn Table {
         match self {
             TableInstance::Xy(t) => t,
@@ -90,6 +134,7 @@ impl TableInstance {
         }
     }
 
+    /// Which flavour of table this value is.
     pub fn flavor(&self) -> TableFlavor {
         match self {
             TableInstance::Xy(_) => TableFlavor::Xy,
@@ -101,6 +146,7 @@ impl TableInstance {
 }
 
 impl Project {
+    /// Create a new, empty project with the given display name.
     pub fn new(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
@@ -110,26 +156,33 @@ impl Project {
         }
     }
 
+    /// Add a table and return its index in [`Project::tables`].
     pub fn add_table(&mut self, table: TableInstance) -> usize {
         self.tables.push(table);
         self.tables.len() - 1
     }
 
+    /// Add an analysis and return its index in [`Project::analyses`].
     pub fn add_analysis(&mut self, analysis: Analysis) -> usize {
         self.analyses.push(analysis);
         self.analyses.len() - 1
     }
 
+    /// Add a graph and return its index in [`Project::graphs`].
     pub fn add_graph(&mut self, graph: Graph) -> usize {
         self.graphs.push(graph);
         self.graphs.len() - 1
     }
 
+    /// Names of all tables, in creation order.
     pub fn table_names(&self) -> Vec<String> {
         self.tables.iter().map(|t| t.as_table().name().to_string()).collect()
     }
 
     /// Re-run one analysis against its table, storing the result or the error.
+    ///
+    /// The error, if any, is recorded on the analysis (`Analysis::error`) so the
+    /// results panel can show why a run failed; the previous result is cleared.
     pub fn run_analysis(&mut self, index: usize) -> Result<()> {
         let analysis = self
             .analyses
@@ -166,6 +219,7 @@ impl Project {
         Ok(())
     }
 
+    /// Run every analysis in the project, storing a result or an error each.
     pub fn run_all_analyses(&mut self) {
         for i in 0..self.analyses.len() {
             let _ = self.run_analysis(i);
@@ -178,7 +232,7 @@ impl Project {
         crate::analysis::build_chart(graph, &self.tables, &self.analyses)
     }
 
-    /// Analyses that target a given table.
+    /// Indices of the analyses that target the given table.
     pub fn analyses_for_table(&self, table: usize) -> Vec<usize> {
         self.analyses
             .iter()

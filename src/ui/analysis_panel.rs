@@ -10,9 +10,13 @@ use crate::ui::{error_color, success_color};
 
 /// Deferred edits, applied after the immutable UI pass.
 enum Action {
+    /// Add a new analysis (from the "Add analysis" menu).
     Add(AnalysisSpec),
+    /// Run an existing analysis.
     Run(usize),
+    /// Create a new graph for an analysis.
     NewGraph(usize),
+    /// Delete an analysis.
     Delete(usize),
 }
 
@@ -51,6 +55,7 @@ pub fn group_names(table: &TableInstance) -> Vec<String> {
     }
 }
 
+/// Build a default graph (with the analysis overlaid) for a given table flavor.
 fn default_graph_for(spec_label: &str, flavor: TableFlavor, analysis: usize) -> Graph {
     let (kind, style, error) = match flavor {
         TableFlavor::Xy => (PlotKind::Xy, SeriesStyle::LinesAndPoints, ErrorKind::Sem),
@@ -397,6 +402,7 @@ pub fn analysis_panel(
     changed
 }
 
+/// Dropdown for picking one group (column) of a table during result editing.
 fn group_picker(
     ui: &mut Ui,
     id: &str,

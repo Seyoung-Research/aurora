@@ -5,12 +5,14 @@ use serde::{Deserialize, Serialize};
 /// How an axis maps data values to positions.
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ScaleKind {
+    /// Linear mapping: data values map linearly onto the axis.
     Linear,
     /// Base-10 logarithm. Values <= 0 are not drawn.
     Log10,
 }
 
 impl Default for ScaleKind {
+    /// Default scale: linear.
     fn default() -> Self {
         ScaleKind::Linear
     }
@@ -19,7 +21,9 @@ impl Default for ScaleKind {
 /// Description of one axis.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Axis {
+    /// Label of the axis (usually the measured quantity).
     pub label: String,
+    /// Scale used to map data values onto the axis.
     pub scale: ScaleKind,
     /// Fixed data range; `None` means "choose from the data".
     pub range: Option<(f64, f64)>,
@@ -39,6 +43,7 @@ impl Default for Axis {
 }
 
 impl Axis {
+    /// Create a new axis with the given label and default settings.
     pub fn new(label: impl Into<String>) -> Self {
         Self {
             label: label.into(),
@@ -46,11 +51,13 @@ impl Axis {
         }
     }
 
+    /// Set the axis scale to a base-10 logarithm (values <= 0 are not drawn).
     pub fn log(mut self) -> Self {
         self.scale = ScaleKind::Log10;
         self
     }
 
+    /// Fix the axis range to `[lo, hi]`.
     pub fn with_range(mut self, lo: f64, hi: f64) -> Self {
         self.range = Some((lo, hi));
         self
@@ -77,7 +84,7 @@ pub fn transform(v: f64, scale: ScaleKind) -> Option<f64> {
     }
 }
 
-/// Inverse of [`transform`].
+/// Inverse of [`transform`]: map a drawing-space value back to a data value.
 pub fn inverse(t: f64, scale: ScaleKind) -> f64 {
     match scale {
         ScaleKind::Linear => t,

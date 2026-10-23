@@ -12,9 +12,13 @@ use crate::plot::{ErrorKind, PlotKind, SeriesStyle};
 /// A request to export a graph, filled in by the panel and handled by the app.
 #[derive(Clone, Debug)]
 pub struct ExportRequest {
+    /// Index of the graph to export.
     pub graph: usize,
+    /// File name (including extension) to write the PNG to.
     pub path: String,
+    /// Requested canvas width in pixels.
     pub width: u32,
+    /// Requested canvas height in pixels.
     pub height: u32,
 }
 
@@ -36,6 +40,7 @@ impl TexCache {
         }
     }
 
+    /// Return the texture cached for `key`, if any.
     pub fn get(&self, key: u64) -> Option<TextureHandle> {
         self.entries
             .iter()
@@ -43,6 +48,7 @@ impl TexCache {
             .map(|(_, t)| t.clone())
     }
 
+    /// Cache the given texture under `key` (replacing any previous entry).
     pub fn insert(&mut self, key: u64, tex: TextureHandle) {
         self.entries.retain(|(k, _)| *k != key);
         self.entries.push((key, tex));
@@ -51,15 +57,18 @@ impl TexCache {
         }
     }
 
+    /// Drop all cached textures.
     pub fn clear(&mut self) {
         self.entries.clear();
     }
 
+    /// Number of cached textures.
     pub fn len(&self) -> usize {
         self.entries.len()
     }
 }
 
+/// Hash several chart keys into a single cache key.
 fn hash_key(parts: &[u64]) -> u64 {
     let mut h = DefaultHasher::new();
     parts.hash(&mut h);
@@ -96,6 +105,7 @@ pub fn kind_for(style: SeriesStyle, flavor: TableFlavor) -> PlotKind {
     }
 }
 
+/// Human-readable label of a series style, for menus and dropdowns.
 fn style_label(s: SeriesStyle) -> &'static str {
     match s {
         SeriesStyle::Points => "Points only",
@@ -108,7 +118,10 @@ fn style_label(s: SeriesStyle) -> &'static str {
     }
 }
 
-/// The graph tab. Returns `true` when the graph set changed.
+/// The graph tab: list graphs, pick data/source for a graph, edit its options
+/// and export it as PNG.
+///
+/// Returns `true` when the graph set changed (added / edited / deleted).
 #[allow(clippy::too_many_arguments)]
 pub fn graph_panel(
     ui: &mut Ui,

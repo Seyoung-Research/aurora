@@ -3,8 +3,12 @@
 //! The renderer draws into an RGB byte buffer with [`plotters`], which the GUI
 //! converts into an egui texture and which can be exported as PNG.
 
+/// Minimal PNG encoder (8-bit truecolour, no interlace).
 pub mod png;
+/// Raster renderer for [`Chart`]s, built directly on plotters' low-level
+/// primitives.
 pub mod render;
+/// Axis scales (linear / log10) and "nice" tick generation.
 pub mod scale;
 
 use serde::{Deserialize, Serialize};
@@ -16,17 +20,26 @@ use crate::stats::descriptive::calculate_descriptive;
 /// Marker shapes for scatter-type series.
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Marker {
+    /// No marker drawn (lines only).
     None,
+    /// Circle marker.
     Circle,
+    /// Square marker.
     Square,
+    /// Triangle marker.
     Triangle,
+    /// Inverted triangle marker.
     InvertedTriangle,
+    /// Diamond marker.
     Diamond,
+    /// Cross marker (drawn as two crossing lines).
     Cross,
+    /// Plus marker (drawn as two crossing lines).
     Plus,
 }
 
 impl Default for Marker {
+    /// Default marker: a circle.
     fn default() -> Self {
         Marker::Circle
     }
@@ -52,6 +65,7 @@ pub enum SeriesStyle {
 }
 
 impl Default for SeriesStyle {
+    /// Default series style: lines with points.
     fn default() -> Self {
         SeriesStyle::LinesAndPoints
     }
@@ -60,20 +74,27 @@ impl Default for SeriesStyle {
 /// The kind of error bar to derive from replicates.
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ErrorKind {
+    /// No error bar.
     None,
+    /// Standard deviation of the replicates.
     Sd,
+    /// Standard error of the mean.
     Sem,
+    /// 95% confidence interval of the mean.
     Ci95,
+    /// Full range (max - min).
     Range,
 }
 
 impl Default for ErrorKind {
+    /// Default error bar: standard error of the mean.
     fn default() -> Self {
         ErrorKind::Sem
     }
 }
 
 impl ErrorKind {
+    /// Short label of the error bar kind, for menus and legends.
     pub fn label(&self) -> &'static str {
         match self {
             ErrorKind::None => "None",
@@ -84,6 +105,7 @@ impl ErrorKind {
         }
     }
 
+    /// All error bar kinds, in display order.
     pub fn all() -> [ErrorKind; 5] {
         [
             ErrorKind::None,
@@ -99,7 +121,9 @@ impl ErrorKind {
 /// box plots and jittered columns can be drawn from it.
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct DataPoint {
+    /// Horizontal position of the point on the x axis.
     pub x: f64,
+    /// Vertical position of the point on the y axis.
     pub y: f64,
     /// Symmetric error bar half-height.
     pub y_err: Option<f64>,
@@ -112,6 +136,7 @@ pub struct DataPoint {
 }
 
 impl DataPoint {
+    /// Create a simple point at `(x, y)`.
     pub fn new(x: f64, y: f64) -> Self {
         Self {
             x,
@@ -120,6 +145,7 @@ impl DataPoint {
         }
     }
 
+    /// Create a point with a symmetric error bar of half-height `err`.
     pub fn with_err(x: f64, y: f64, err: f64) -> Self {
         Self {
             x,
@@ -129,6 +155,7 @@ impl DataPoint {
         }
     }
 
+    /// Create a point carrying the raw replicate values.
     pub fn with_raw(x: f64, y: f64, raw: Vec<f64>) -> Self {
         Self {
             x,
@@ -149,18 +176,26 @@ impl DataPoint {
 /// A data series (one dataset in a graph).
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Series {
+    /// Display name of the series (used in legends).
     pub name: String,
+    /// Drawing style (line, markers, bars, boxes, ...).
     pub style: SeriesStyle,
+    /// RGB colour of the series, in 0-255 channels.
     pub color: [u8; 3],
+    /// Marker drawn at each point.
     pub marker: Marker,
+    /// The points of the series, in data coordinates.
     pub points: Vec<DataPoint>,
+    /// Line width in pixels (lines only).
     pub line_width: u32,
+    /// Marker size in pixels.
     pub marker_size: u32,
     /// Fill opacity in percent for bars/areas (0-100).
     pub fill_alpha: u8,
 }
 
 impl Series {
+    /// Create a new series with the given name, style and colour.
     pub fn new(name: impl Into<String>, style: SeriesStyle, color: [u8; 3]) -> Self {
         Self {
             name: name.into(),
@@ -174,16 +209,19 @@ impl Series {
         }
     }
 
+    /// Set the data points of the series.
     pub fn with_points(mut self, points: Vec<DataPoint>) -> Self {
         self.points = points;
         self
     }
 
+    /// Set the marker shape used for the series' points.
     pub fn with_marker(mut self, marker: Marker) -> Self {
         self.marker = marker;
         self
     }
 
+    /// Set the fill opacity (0-100) used for bar/area series.
     pub fn with_fill_alpha(mut self, alpha: u8) -> Self {
         self.fill_alpha = alpha.min(100);
         self
@@ -218,6 +256,7 @@ pub enum PlotKind {
 }
 
 impl Default for PlotKind {
+    /// Default plot kind: a numeric x axis (XY plot).
     fn default() -> Self {
         PlotKind::Xy
     }
@@ -226,26 +265,36 @@ impl Default for PlotKind {
 /// A complete, self-describing graph ready to be rendered.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Chart {
+    /// Title of the chart, drawn at the top of the canvas.
     pub title: String,
+    /// Description of the x axis (label, scale, range, tick count).
     pub x_axis: Axis,
+    /// Description of the y axis (label, scale, range, tick count).
     pub y_axis: Axis,
+    /// Overall kind of the plot (numeric vs categorical x axis).
     pub kind: PlotKind,
+    /// The series to draw.
     pub series: Vec<Series>,
+    /// Whether to draw a legend.
     pub legend: bool,
     /// Horizontal jitter applied to raw points in `Columns` plots (0.0-0.5).
     pub jitter: f64,
     /// Tick labels for categorical plots.
     pub categories: Vec<String>,
+    /// Whether to draw the surrounding frame.
     pub frame: bool,
     /// Draw light horizontal grid lines.
     pub grid: bool,
     /// Fill colour of the whole canvas.
     pub background: [u8; 3],
+    /// Canvas width in pixels used for rendering / export.
     pub width: u32,
+    /// Canvas height in pixels used for rendering / export.
     pub height: u32,
 }
 
 impl Default for Chart {
+    /// Default chart: numeric x axis, lines with points, legend on, 800x600.
     fn default() -> Self {
         Self {
             title: String::new(),
@@ -266,6 +315,7 @@ impl Default for Chart {
 }
 
 impl Chart {
+    /// Create a new chart with the given title and plot kind.
     pub fn new(title: impl Into<String>, kind: PlotKind) -> Self {
         Self {
             title: title.into(),
@@ -274,17 +324,20 @@ impl Chart {
         }
     }
 
+    /// Set both axes of the chart.
     pub fn with_axes(mut self, x: Axis, y: Axis) -> Self {
         self.x_axis = x;
         self.y_axis = y;
         self
     }
 
+    /// Add a series to the chart.
     pub fn with_series(mut self, s: Series) -> Self {
         self.series.push(s);
         self
     }
 
+    /// Enable or disable the legend.
     pub fn legend(mut self, on: bool) -> Self {
         self.legend = on;
         self

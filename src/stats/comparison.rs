@@ -15,41 +15,60 @@ use crate::stats::distributions::{
 // t-tests
 // ---------------------------------------------------------------------------
 
+/// Kind of Student's t-test to run.
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 pub enum TTestKind {
+    /// Independent two-sample t-test with pooled variance.
     Unpaired,
+    /// Independent two-sample t-test using Welch's unequal-variance correction.
     Welch,
+    /// Paired t-test: one sample on the differences of the two groups.
     Paired,
+    /// One-sample t-test of the mean against a hypothetical value.
     OneSample,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TTestResult {
+    /// Which kind of t-test produced this result.
     pub kind: TTestKind,
+    /// t statistic.
     pub t: f64,
+    /// Degrees of freedom of the t distribution.
     pub df: f64,
+    /// Two-tailed p-value.
     pub p_value: f64,
+    /// Mean of group A.
     pub mean_a: f64,
+    /// Mean of group B.
     pub mean_b: f64,
+    /// Difference of the means (A - B).
     pub mean_diff: f64,
     /// 95% confidence interval of the difference in means.
     pub ci95_diff: (f64, f64),
-    /// Cohen's d effect size (unpaired) or dz (paired/one-sample).
+    /// Effect size: Cohen's d (unpaired), or dz (paired / one-sample).
     pub effect_size: f64,
+    /// Number of observations in group A.
     pub n_a: usize,
+    /// Number of observations in group B.
     pub n_b: usize,
 }
 
 impl TTestResult {
+    /// Whether the result is statistically significant at the conventional
+    /// 0.05 level.
     pub fn significant(&self) -> bool {
         self.p_value < 0.05
     }
 }
 
+/// Arithmetic mean of a sample.
 fn mean(v: &[f64]) -> f64 {
     v.iter().sum::<f64>() / v.len() as f64
 }
 
+/// Sample variance of a sample with at least two observations (n - 1
+/// denominator); `0.0` for shorter samples.
 fn variance(v: &[f64]) -> f64 {
     if v.len() < 2 {
         return 0.0;
@@ -58,7 +77,16 @@ fn variance(v: &[f64]) -> f64 {
     v.iter().map(|x| (x - m).powi(2)).sum::<f64>() / (v.len() as f64 - 1.0)
 }
 
-/// Unpaired t-test. `welch = true` uses Welch's correction (unequal variances).
+/// Unpaired two-sample t-test.
+///
+/// `welch = true` selects Welch's correction for unequal variances between the
+/// groups (the default flavour used for unequal-sized groups). Requires at least
+/// two observations per group; the effect size is Cohen's d, computed against
+/// the pooled standard deviation. Returns an error when a group is too small.
+///
+/// # Errors
+///
+/// Returns an error if either group has fewer than two observations.
 pub fn t_test_unpaired(a: &[f64], b: &[f64], welch: bool) -> Result<TTestResult> {
     if a.len() < 2 || b.len() < 2 {
         return Err(anyhow!("Each group needs at least 2 observations"));
@@ -104,7 +132,14 @@ pub fn t_test_unpaired(a: &[f64], b: &[f64], welch: bool) -> Result<TTestResult>
     })
 }
 
-/// Paired t-test (one sample on the differences).
+/// Paired t-test: a one-sample t-test run on the differences `a - b`.
+///
+/// Both vectors must have the same length and hold at least two pairs; the
+/// resulting statistics refer to the paired differences.
+///
+/// # Errors
+///
+/// Returns an error if the lengths differ, or if there are fewer than two pairs.
 pub fn t_test_paired(a: &[f64], b: &[f64]) -> Result<TTestResult> {
     if a.len() != b.len() {
         return Err(anyhow!("Paired samples must have the same length"));
@@ -120,7 +155,14 @@ pub fn t_test_paired(a: &[f64], b: &[f64]) -> Result<TTestResult> {
     Ok(r)
 }
 
-/// One-sample t-test against a hypothetical mean `mu`.
+/// One-sample t-test of the mean of `data` against a hypothetical value `mu`.
+///
+/// The test statistic is `(mean - mu) / (sd / sqrt(n))`; the effect size is the
+/// z-score `dz`. Requires at least two observations.
+///
+/// # Errors
+///
+/// Returns an error if `data` holds fewer than two observations.
 pub fn t_test_one_sample(data: &[f64], mu: f64) -> Result<TTestResult> {
     if data.len() < 2 {
         return Err(anyhow!("Need at least 2 observations"));
@@ -156,33 +198,53 @@ pub fn t_test_one_sample(data: &[f64], mu: f64) -> Result<TTestResult> {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct PairwiseComparison {
+    /// Index of the first group (into the group vector).
     pub group_a: usize,
+    /// Index of the second group.
     pub group_b: usize,
+    /// Difference of the group means (group A - group B).
     pub mean_diff: f64,
-    /// Bonferroni-adjusted p-value.
+    /// Bonferroni-adjusted p-value for this pairwise comparison.
     pub p_adjusted: f64,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct AnovaResult {
+    /// Sum of squares between groups.
     pub ss_between: f64,
+    /// Sum of squares within groups.
     pub ss_within: f64,
+    /// Total sum of squares (between + within).
     pub ss_total: f64,
+    /// Degrees of freedom between groups.
     pub df_between: f64,
+    /// Degrees of freedom within groups.
     pub df_within: f64,
+    /// Mean square between groups (SS between / df between).
     pub ms_between: f64,
+    /// Mean square within groups (SS within / df within).
     pub ms_within: f64,
+    /// F statistic (between / within).
     pub f: f64,
+    /// p-value of the F statistic.
     pub p_value: f64,
-    /// Eta-squared effect size.
+    /// Eta-squared effect size (between / total).
     pub eta_squared: f64,
+    /// Mean of each group (parallel to `group_ns`).
     pub group_means: Vec<f64>,
+    /// Sample size of each group (parallel to `group_means`).
     pub group_ns: Vec<usize>,
     /// Bonferroni-adjusted pairwise comparisons.
     pub pairwise: Vec<PairwiseComparison>,
 }
 
-/// One-way ANOVA across `k` groups.
+/// One-way analysis of variance across `k` groups.
+///
+/// # Errors
+///
+/// Returns an error when fewer than two groups are given, when any group is
+/// empty, or when there are not enough observations overall (at least one
+/// observation per group plus one df of freedom).
 pub fn one_way_anova(groups: &[Vec<f64>]) -> Result<AnovaResult> {
     let k = groups.len();
     if k < 2 {
@@ -283,26 +345,49 @@ pub fn one_way_anova(groups: &[Vec<f64>]) -> Result<AnovaResult> {
 // Two-way ANOVA (with replication)
 // ---------------------------------------------------------------------------
 
+/// Results of a two-way ANOVA with replication.
+///
+/// The data is indexed `[row (factor A)][column (factor B)][replicate]`; every
+/// cell must hold the same number of replicates.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TwoWayAnovaResult {
+    /// Sum of squares due to factor A.
     pub ss_factor_a: f64,
+    /// Sum of squares due to factor B.
     pub ss_factor_b: f64,
+    /// Sum of squares due to the A x B interaction.
     pub ss_interaction: f64,
+    /// Sum of squares within cells (pure error).
     pub ss_error: f64,
+    /// Total sum of squares.
     pub ss_total: f64,
+    /// Degrees of freedom of factor A.
     pub df_a: f64,
+    /// Degrees of freedom of factor B.
     pub df_b: f64,
+    /// Degrees of freedom of the interaction.
     pub df_interaction: f64,
+    /// Degrees of freedom of the error term.
     pub df_error: f64,
+    /// Mean square for factor A.
     pub ms_a: f64,
+    /// Mean square for factor B.
     pub ms_b: f64,
+    /// Mean square for the interaction.
     pub ms_interaction: f64,
+    /// Mean square for the error term.
     pub ms_error: f64,
+    /// F statistic for factor A.
     pub f_a: f64,
+    /// F statistic for factor B.
     pub f_b: f64,
+    /// F statistic for the interaction.
     pub f_interaction: f64,
+    /// p-value for factor A.
     pub p_a: f64,
+    /// p-value for factor B.
     pub p_b: f64,
+    /// p-value for the interaction.
     pub p_interaction: f64,
 }
 
@@ -441,16 +526,31 @@ fn rank_with_ties(values: &[f64]) -> Vec<f64> {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct MannWhitneyResult {
+    /// U statistic (the smaller of the two U values).
     pub u_statistic: f64,
+    /// Normal-approximation z statistic (with continuity correction).
     pub z: f64,
+    /// Two-tailed p-value.
     pub p_value: f64,
+    /// Median of group A.
     pub median_a: f64,
+    /// Median of group B.
     pub median_b: f64,
+    /// Number of observations in group A.
     pub n_a: usize,
+    /// Number of observations in group B.
     pub n_b: usize,
 }
 
 /// Mann-Whitney U test (normal approximation with continuity correction).
+///
+/// Compares the distributions of two independent groups via the U statistic
+/// and a normal approximation that includes a continuity correction; the p-value
+/// is two-tailed and computed from the survival function of the normal.
+///
+/// # Errors
+///
+/// Returns an error if either group is empty.
 pub fn mann_whitney_u(a: &[f64], b: &[f64]) -> Result<MannWhitneyResult> {
     if a.is_empty() || b.is_empty() {
         return Err(anyhow!("Both groups must be non-empty"));
@@ -506,14 +606,28 @@ pub fn mann_whitney_u(a: &[f64], b: &[f64]) -> Result<MannWhitneyResult> {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct WilcoxonResult {
+    /// Sum of the ranks of the positive differences (W+).
     pub w_plus: f64,
+    /// Sum of the ranks of the negative differences (W-).
     pub w_minus: f64,
+    /// Normal-approximation z statistic.
     pub z: f64,
+    /// Two-tailed p-value.
     pub p_value: f64,
+    /// Number of effective (non-zero) pairs used.
     pub n_effective: usize,
 }
 
 /// Wilcoxon signed-rank test (normal approximation).
+///
+/// Runs on the paired differences `a - b`, discarding zero differences; the
+/// ranks of the absolute differences are used and the test statistic is compared
+/// against its normal approximation.
+///
+/// # Errors
+///
+/// Returns an error if the two vectors differ in length, or if all differences
+/// are zero.
 pub fn wilcoxon_signed_rank(a: &[f64], b: &[f64]) -> Result<WilcoxonResult> {
     if a.len() != b.len() {
         return Err(anyhow!("Paired samples must have the same length"));
@@ -563,12 +677,23 @@ pub fn wilcoxon_signed_rank(a: &[f64], b: &[f64]) -> Result<WilcoxonResult> {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct KruskalWallisResult {
+    /// Kruskal-Wallis H statistic.
     pub h: f64,
+    /// Degrees of freedom (number of groups - 1).
     pub df: f64,
+    /// p-value of the H statistic (as an F distribution).
     pub p_value: f64,
 }
 
 /// Kruskal-Wallis one-way analysis of variance by ranks.
+///
+/// Compares more than two independent groups using the H statistic, which is
+/// computed from the average ranks of the pooled data and corrected for ties.
+///
+/// # Errors
+///
+/// Returns an error when fewer than two groups are given, when any group is
+/// empty, or when there are not enough observations overall.
 pub fn kruskal_wallis(groups: &[Vec<f64>]) -> Result<KruskalWallisResult> {
     let k = groups.len();
     if k < 2 {
@@ -627,11 +752,23 @@ pub fn kruskal_wallis(groups: &[Vec<f64>]) -> Result<KruskalWallisResult> {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct FriedmanResult {
+    /// Friedman chi-square statistic.
     pub chi_square: f64,
+    /// Degrees of freedom (number of treatments - 1).
     pub df: f64,
+    /// p-value of the chi-square statistic.
     pub p_value: f64,
 }
 /// Friedman test for repeated-measures data. `blocks[block][treatment]`.
+///
+/// Each block is one subject's (or item's) sequence of treatments; the test
+/// ranks the treatments within each block and compares the average ranks
+/// against the Friedman chi-square statistic.
+///
+/// # Errors
+///
+/// Returns an error when no data is given, when fewer than two treatments are
+/// used, or when the blocks have inconsistent lengths.
 pub fn friedman(blocks: &[Vec<f64>]) -> Result<FriedmanResult> {
     if blocks.is_empty() {
         return Err(anyhow!("No data"));
@@ -668,8 +805,11 @@ pub fn friedman(blocks: &[Vec<f64>]) -> Result<FriedmanResult> {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ChiSquareResult {
+    /// Chi-square statistic.
     pub chi_square: f64,
+    /// Degrees of freedom (rows - 1) * (cols - 1).
     pub df: f64,
+    /// p-value of the chi-square statistic.
     pub p_value: f64,
     /// Expected counts under independence.
     pub expected: Vec<Vec<f64>>,
@@ -678,6 +818,15 @@ pub struct ChiSquareResult {
 }
 
 /// Chi-square test of independence for a contingency table.
+///
+/// Tests whether two categorical variables are associated, using the
+/// chi-square statistic computed from observed versus expected counts. The
+/// effect size is Cramer's V.
+///
+/// # Errors
+///
+/// Returns an error when the table has fewer than two rows or columns, when
+/// the rows have inconsistent lengths, or when the table is empty.
 pub fn chi_square_independence(counts: &[Vec<u64>]) -> Result<ChiSquareResult> {
     let rows = counts.len();
     if rows < 2 {

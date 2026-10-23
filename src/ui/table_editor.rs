@@ -45,6 +45,7 @@ fn max_len(cols: &[Vec<f64>]) -> usize {
 // XY
 // ---------------------------------------------------------------------------
 
+/// Editor for an XY table: edit the name, X values and Y replicates.
 fn xy_editor(ui: &mut Ui, t: &mut XyTable) -> bool {
     let mut changed = false;
     let n_cols = t.data.iter().map(|(_, r)| r.len()).max().unwrap_or(0);
@@ -128,6 +129,7 @@ fn xy_editor(ui: &mut Ui, t: &mut XyTable) -> bool {
 // Column
 // ---------------------------------------------------------------------------
 
+/// Editor for a column table: edit the name, group names and replicate columns.
 fn column_editor(ui: &mut Ui, t: &mut ColumnTable) -> bool {
     let mut changed = false;
     let n_cols = t.columns.len();
@@ -259,6 +261,7 @@ fn group_reps(data: &[Vec<Vec<f64>>], g: usize) -> usize {
         .max(1)
 }
 
+/// Editor for a grouped table: edit row labels, group names and cells.
 fn grouped_editor(ui: &mut Ui, t: &mut GroupedTable) -> bool {
     let mut changed = false;
     let n_groups = t.group_names.len();
@@ -412,6 +415,7 @@ fn grouped_editor(ui: &mut Ui, t: &mut GroupedTable) -> bool {
 // Contingency
 // ---------------------------------------------------------------------------
 
+/// Editor for a contingency table: edit row labels, column labels and counts.
 fn contingency_editor(ui: &mut Ui, t: &mut ContingencyTable) -> bool {
     let mut changed = false;
     let n_cols = t.col_labels.len();

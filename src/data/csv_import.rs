@@ -22,6 +22,8 @@ use crate::data::TableFlavor;
 use crate::data::tables::{ColumnTable, ContingencyTable, GroupedTable, XyTable};
 use crate::data::TableInstance;
 
+/// Open a CSV file and build a flexible reader (no headers assumed, rows of
+/// varying length allowed).
 fn reader(path: &str) -> Result<csv::Reader<BufReader<File>>> {
     let file = File::open(path).with_context(|| format!("Cannot open {path}"))?;
     Ok(ReaderBuilder::new()
@@ -31,6 +33,7 @@ fn reader(path: &str) -> Result<csv::Reader<BufReader<File>>> {
 }
 
 /// All records of a CSV file, skipping completely blank lines.
+/// Read all records of a CSV file, skipping completely blank lines.
 fn records(path: &str) -> Result<Vec<Vec<String>>> {
     let mut r = reader(path)?;
     let mut out = Vec::new();
@@ -44,6 +47,7 @@ fn records(path: &str) -> Result<Vec<Vec<String>>> {
     Ok(out)
 }
 
+/// Parse a trimmed float cell; empty or non-numeric cells become `None`.
 fn parse_f64(s: &str) -> Option<f64> {
     let s = s.trim();
     if s.is_empty() {
@@ -52,6 +56,7 @@ fn parse_f64(s: &str) -> Option<f64> {
     s.parse::<f64>().ok()
 }
 
+/// File stem (without extension) of a CSV path, used as the default table name.
 fn stem(path: &str) -> String {
     Path::new(path)
         .file_stem()

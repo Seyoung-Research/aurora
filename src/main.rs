@@ -1,11 +1,21 @@
-//! Aurora — desktop statistics, curve fitting and graphing.
+//! Aurora is a data visualization and statistical analysis program written entirely in Rust.
 //!
 //! Run without arguments to open the desktop application. `--selftest` builds
 //! the demo project, runs every analysis and renders every graph without a
 //! window, which is handy on headless machines (and writes PNGs when
 //! `--write-samples <dir>` or `GP_WRITE_SAMPLES=<dir>` is given).
+//!
+//! ## Command line
+//!
+//! - `aurora` — open the desktop app.
+//! - `aurora --open FILE.json` — open a saved project on start.
+//! - `aurora --selftest` — run the demo project headlessly.
+//! - `aurora --selftest --write-samples DIR` — also export every demo graph as PNG.
+//! - `aurora --open FILE.json --tab graph` — start on a given tab (`data`,
+//!   `results` or `graph`).
+//! - `aurora -h | --help` — print the usage text.
 
-// The stats/plot/data layers expose a broader API than the GUI currently
+// The stats/plot/data/analysis layers expose a broader API than the GUI currently
 // exercises (extra distributions, quantiles, chart helpers, table utilities).
 // Those items are covered by unit tests, so the dead-code lint is turned off
 // for the engine modules only — the UI code stays strictly checked.
@@ -56,6 +66,7 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+/// Print the command-line usage text to stdout.
 fn print_usage() {
     println!(
         "Aurora — statistics, curve fitting and graphing\n\
@@ -85,6 +96,13 @@ fn count_ink(img: &plot::render::ChartImage) -> usize {
 
 /// Build the demo project, run everything and render everything. Exits non-zero
 /// when any step fails.
+///
+/// Steps: list tables, run every analysis, render every graph (optionally
+/// writing PNGs to `sample_dir`), and do a save/load round trip.
+///
+/// # Errors
+///
+/// Returns an error if the demo project cannot be built, rendered or saved.
 fn selftest(sample_dir: Option<&str>) -> Result<()> {
     let mut project = ui::demo::demo_project();
     let mut failures: Vec<String> = Vec::new();
